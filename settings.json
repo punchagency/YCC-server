@@ -1,0 +1,9 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-config",
+  "editor.formatOnSave": true,
+  "prettier.singleQuote": true,
+  "prettier.trailingComma": "es5",
+  "prettier.printWidth": 80,
+  "prettier.tabWidth": 2,
+  "prettier.semi": true
+} 
