@@ -33,19 +33,25 @@ const userSchema = new mongoose.Schema(
     crewDetails: {
       firstName: {
         type: String,
-        required: true,
+        required: function () {
+          return this.role === 'crew_member';
+        },
         trim: true,
       },
       lastName: {
         type: String,
-        required: true,
+        required: function () {
+          return this.role === 'crew_member';
+        },
         trim: true,
       },
-      country: String,
       phone: {
         type: String,
-        required: true,
+        required: function () {
+          return this.role === 'crew_member';
+        },
       },
+      country: String,
       position: {
         type: String,
         enum: ['captain', 'exterior', 'interior', 'chef', 'engineering'],
@@ -90,10 +96,10 @@ const userSchema = new mongoose.Schema(
       phone: { type: String },
       businessWebsite: { type: String },
       taxId: { type: String },
-      licenseFile: { type: String }, 
-      liabilityInsurance: { type: String }, 
-      services: [{ type: String }], 
-      pricingStructure: { type: String }, 
+      licenseFile: { type: String },
+      liabilityInsurance: { type: String },
+      services: [{ type: String }],
+      pricingStructure: { type: String },
       availability: { type: String },
       bookingMethod: {
         type: String,
@@ -107,8 +113,7 @@ const userSchema = new mongoose.Schema(
       contactPerson: {
         fullName: { type: String },
         role: { type: String },
-        email: { type: String },
-        phone: { type: String },
+        
       },
     },
 

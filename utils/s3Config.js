@@ -14,9 +14,34 @@ const s3Client = new S3Client({
 });
 
 const allowedFileTypes = {
-  profilePicture: ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif'],
-  cv: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-  certificationFiles: ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/webp'],
+  profilePicture: [
+    'image/jpeg',
+    'image/png',
+    'image/jpg',
+    'image/webp',
+    'image/gif',
+  ],
+  cv: [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ],
+  certificationFiles: [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/jpg',
+    'image/webp',
+  ],
+  licenseFile: ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'],
+  liabilityInsurance: [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/jpg',
+  ],
+  taxId: ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'],
+  pricingStructure: ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'],
 };
 
 const fileFilter = (req, file, cb) => {
@@ -52,6 +77,10 @@ const upload = multer({
   { name: 'profilePicture', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
   { name: 'certificationFiles', maxCount: 5 },
+  { name: 'licenseFile', maxCount: 1 },
+  { name: 'liabilityInsurance', maxCount: 1 },
+  { name: 'taxId', maxCount: 1 },
+  { name: 'pricingStructure', maxCount: 1 },
 ]);
 
 module.exports = upload;

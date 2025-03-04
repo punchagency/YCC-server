@@ -16,17 +16,72 @@ const signup = async (req, res) => {
     const { email, password, confirmPassword, role } = req.body;
 
     let crewDetails = JSON.parse(req.body.crewDetails || '{}');
+    let vendorDetails = req.body.vendorDetails;
+
+    if(!role){
+      return res.status(400).json({
+        status: 'error',
+        message: 'Role is required.',
+      });
+    }
+
+    if (role === 'service_provider') {
+  try {
+    if (typeof vendorDetails === 'string') {
+      vendorDetails = JSON.parse(vendorDetails);
+    }
+    
+    if (!vendorDetails || !vendorDetails.businessName) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Business name is required.',
+      });
+    }
+  } catch (e) {
+    console.log('Error parsing vendorDetails:', e);
+    return res.status(400).json({
+      status: 'error',
+      message: 'Invalid vendor details format',
+    });
+  }
+}
+
 
     // Log received files
     console.log('Received files:', req.files);
 
     // Validate required fields
-    if (!email || !password || !confirmPassword) {
+    if (!email) {
       return res.status(400).json({
         status: 'error',
-        message: 'Email, password, and confirm password are required.',
+        message: 'Email is required.',
       });
     }
+
+    // Only enforce password for roles that require it
+    // If the role is NOT service_provider or supplier, validate password
+     if (!['service_provider', 'supplier'].includes(role)) {
+       if (!password || !confirmPassword) {
+         return res.status(400).json({
+           status: 'error',
+           message: 'Password and Confirm Password are required.',
+         });
+       }
+
+       if (password.length < 8) {
+         return res.status(400).json({
+           status: 'error',
+           message: 'Password must be at least 8 characters.',
+         });
+       }
+
+       if (password !== confirmPassword) {
+         return res.status(400).json({
+           status: 'error',
+           message: 'Passwords do not match.',
+         });
+       }
+     }
 
     const validRoles = [
       'captain',
@@ -50,35 +105,18 @@ const signup = async (req, res) => {
       });
     }
 
-    if (
-      password.length < 8 ||
-      !/[A-Z]/.test(password) ||
-      !/[0-9]/.test(password) ||
-      !/[^A-Za-z0-9]/.test(password)
-    ) {
-      return res.status(400).json({
-        status: 'error',
-        message:
-          'Password must be at least 8 characters long, include an uppercase letter, a number, and a special character.',
-      });
-    }
-
-    if (password !== confirmPassword) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Passwords do not match.',
-      });
-    }
-
+     console.log('Checking email:', email.toLowerCase());
     const existingUser = await User.findOne({
       email: email.toLowerCase(),
-    }).exec();
+    }).lean();
+     console.log('Existing user found:', existingUser);
     if (existingUser) {
       return res.status(400).json({
         status: 'error',
         message: 'Oops! Account already exists. Please log in.',
       });
     }
+     console.log('Vendor Details:', vendorDetails);
 
     let hashedPassword;
     let tempUsername = null;
@@ -91,7 +129,7 @@ const signup = async (req, res) => {
       tempPassword = Math.random().toString(36).slice(-8); // Random 8-character password
       hashedPassword = await bcrypt.hash(tempPassword, 10); // Hash temporary password
     } else {
-       hashedPassword = await bcrypt.hash(password, 10);
+      hashedPassword = await bcrypt.hash(password, 10);
     }
 
     const newUser = new User({
@@ -103,7 +141,7 @@ const signup = async (req, res) => {
         role === 'crew_member'
           ? {
               ...crewDetails,
-             
+
               profilePicture: crewDetails.profilePicture || null,
               cv: crewDetails.cv || null,
               certificationFiles: crewDetails.certificationFiles || [],
@@ -113,12 +151,9 @@ const signup = async (req, res) => {
 
     // Assign role-specific details
     if (role === 'crew_member') {
-    
-
       // Only try to access files if req.files exists
       const s3BaseUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`;
       if (req.files) {
-       
         if (req.files.profilePicture && req.files.profilePicture[0]) {
           crewDetails.profilePicture = `${s3BaseUrl}/${req.files.profilePicture[0].key}`;
         }
@@ -133,8 +168,6 @@ const signup = async (req, res) => {
           );
         }
       }
-
-     
 
       if (!crewDetails || !crewDetails.position) {
         return res.status(400).json({
@@ -155,6 +188,17 @@ const signup = async (req, res) => {
       newUser.supplierDetails = supplierDetails;
     }
 
+     if (typeof vendorDetails === 'string') {
+       try {
+         vendorDetails = JSON.parse(vendorDetails);
+       } catch (e) {
+         console.log('Error parsing vendorDetails:', e);
+         return res.status(400).json({
+           status: 'error',
+           message: 'Invalid vendor details format',
+         });
+       }
+     }
     if (role === 'service_provider') {
       if (!vendorDetails || !vendorDetails.businessName) {
         return res.status(400).json({
@@ -162,7 +206,57 @@ const signup = async (req, res) => {
           message: 'Vendor details are required.',
         });
       }
+
+      // Handle file uploads for service providers
+      const s3BaseUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`;
+
+      if (req.files) {
+        console.log('Service provider files:', req.files);
+
+        // Handle license file
+        if (req.files.licenseFile?.[0]) {
+          vendorDetails.licenseFile = `${s3BaseUrl}/${req.files.licenseFile[0].key}`;
+        }
+
+        // Handle liability insurance
+        if (req.files.liabilityInsurance?.[0]) {
+          vendorDetails.liabilityInsurance = `${s3BaseUrl}/${req.files.liabilityInsurance[0].key}`;
+        }
+
+        // Handle tax ID
+        if (req.files.taxId?.[0]) {
+          vendorDetails.taxId = `${s3BaseUrl}/${req.files.taxId[0].key}`;
+        }
+
+        // Handle pricing structure
+        if (req.files.pricingStructure?.[0]) {
+          vendorDetails.pricingStructure = `${s3BaseUrl}/${req.files.pricingStructure[0].key}`;
+        }
+      }
+
       newUser.vendorDetails = vendorDetails;
+      newUser.crewDetails = undefined;
+
+      // 📧 Send onboarding email with Calendly link
+      const calendlyLink =
+        'https://calendly.com/emmanuelnnachi-punch/ycc-onboarding'; // Replace with actual link
+      const serviceProviderEmail = `
+    <div>
+      <h3>Welcome to Yacht Crew Central!</h3>
+      <p>Thank you for applying as a Service Provider. We appreciate your interest in joining our platform.</p>
+      <p>To proceed with the onboarding process, please schedule a meeting using the link below:</p>
+      <p><a href="${calendlyLink}" target="_blank">${calendlyLink}</a></p>
+      <p>We look forward to working with you!</p>
+      <p>Best regards,</p>
+      <p><strong>Yacht Crew Central Team</strong></p>
+    </div>
+  `;
+
+      await sendMail(
+        req.body.email,
+        'Thank You for Applying – Schedule Your Onboarding',
+        serviceProviderEmail
+      );
     }
 
     await sendMail(
@@ -185,7 +279,11 @@ const signup = async (req, res) => {
     <div>
       <h3>New User Signup</h3>
       <p>A new user has signed up and is awaiting approval.</p>
-      <p><strong>Full Name:</strong> ${crewDetails.firstName}</p>
+      <p><strong>Full Name:</strong> ${
+        role === 'crew_member'
+          ? `${crewDetails.firstName} ${crewDetails.lastName}`
+          : vendorDetails?.businessName || 'N/A'
+      }</p>
       <p><strong>Email:</strong> ${email}</p>
       <p><strong>Role:</strong> ${role}</p>
       <p>Please review and approve/reject the user.</p>
@@ -207,9 +305,11 @@ const signup = async (req, res) => {
     for (const admin of adminUsers) {
       const newNotification = new Notification({
         recipient: admin._id,
-        message: `New user ${crewDetails?.firstName || ''} ${
-          crewDetails.lastName || ''
-        } (${email}) has signed up and is awaiting approval`,
+        message: `New user ${
+          role === 'crew_member'
+            ? `${crewDetails.firstName} ${crewDetails.lastName}`
+            : vendorDetails?.businessName || email
+        } has signed up and is awaiting approval`,
       });
       await newNotification.save();
     }
