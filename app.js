@@ -26,7 +26,8 @@ const s3 = new S3Client({
   region: bucketRegion,
 });
 
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+app.use(cors({ origin: '*', credentials: true }));
+
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
