@@ -140,8 +140,7 @@ const userSchema = new mongoose.Schema(
       contactPerson: {
         fullName: { type: String },
         role: { type: String },
-        email: { type: String },
-        phone: { type: String },
+       
       },
     },
   },
