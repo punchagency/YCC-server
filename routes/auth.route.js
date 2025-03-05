@@ -7,12 +7,13 @@ const {verifyToken} = require("../utils/jwt.utils");
 const upload = require("../utils/s3Config");
 
 
+
 const router = express.Router()
 
 
 
 
-router.post('/signup', upload, signup);
+router.post('/signup', upload,signup);
 router.post("/login", rateLimiter, loginUser);
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-otp", verifyOtp);

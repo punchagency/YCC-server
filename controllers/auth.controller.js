@@ -11,6 +11,7 @@ const Notification = require('../models/notifications');
 const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { s3Client } = require('../utils/s3Config');
 
+
 const signup = async (req, res) => {
   try {
     const { email, password, confirmPassword, role } = req.body;
@@ -18,7 +19,7 @@ const signup = async (req, res) => {
     let crewDetails = JSON.parse(req.body.crewDetails || '{}');
     let vendorDetails = req.body.vendorDetails;
 
-    if(!role){
+    if (!role) {
       return res.status(400).json({
         status: 'error',
         message: 'Role is required.',
@@ -26,26 +27,25 @@ const signup = async (req, res) => {
     }
 
     if (role === 'service_provider') {
-  try {
-    if (typeof vendorDetails === 'string') {
-      vendorDetails = JSON.parse(vendorDetails);
-    }
-    
-    if (!vendorDetails || !vendorDetails.businessName) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Business name is required.',
-      });
-    }
-  } catch (e) {
-    console.log('Error parsing vendorDetails:', e);
-    return res.status(400).json({
-      status: 'error',
-      message: 'Invalid vendor details format',
-    });
-  }
-}
+      try {
+        if (typeof vendorDetails === 'string') {
+          vendorDetails = JSON.parse(vendorDetails);
+        }
 
+        if (!vendorDetails || !vendorDetails.businessName) {
+          return res.status(400).json({
+            status: 'error',
+            message: 'Business name is required.',
+          });
+        }
+      } catch (e) {
+        console.log('Error parsing vendorDetails:', e);
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid vendor details format',
+        });
+      }
+    }
 
     // Log received files
     console.log('Received files:', req.files);
@@ -60,28 +60,28 @@ const signup = async (req, res) => {
 
     // Only enforce password for roles that require it
     // If the role is NOT service_provider or supplier, validate password
-     if (!['service_provider', 'supplier'].includes(role)) {
-       if (!password || !confirmPassword) {
-         return res.status(400).json({
-           status: 'error',
-           message: 'Password and Confirm Password are required.',
-         });
-       }
+    if (!['service_provider', 'supplier'].includes(role)) {
+      if (!password || !confirmPassword) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Password and Confirm Password are required.',
+        });
+      }
 
-       if (password.length < 8) {
-         return res.status(400).json({
-           status: 'error',
-           message: 'Password must be at least 8 characters.',
-         });
-       }
+      if (password.length < 8) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Password must be at least 8 characters.',
+        });
+      }
 
-       if (password !== confirmPassword) {
-         return res.status(400).json({
-           status: 'error',
-           message: 'Passwords do not match.',
-         });
-       }
-     }
+      if (password !== confirmPassword) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Passwords do not match.',
+        });
+      }
+    }
 
     const validRoles = [
       'captain',
@@ -105,18 +105,18 @@ const signup = async (req, res) => {
       });
     }
 
-     console.log('Checking email:', email.toLowerCase());
+    console.log('Checking email:', email.toLowerCase());
     const existingUser = await User.findOne({
       email: email.toLowerCase(),
     }).lean();
-     console.log('Existing user found:', existingUser);
+    console.log('Existing user found:', existingUser);
     if (existingUser) {
       return res.status(400).json({
         status: 'error',
         message: 'Oops! Account already exists. Please log in.',
       });
     }
-     console.log('Vendor Details:', vendorDetails);
+    console.log('Vendor Details:', vendorDetails);
 
     let hashedPassword;
     let tempUsername = null;
@@ -188,17 +188,17 @@ const signup = async (req, res) => {
       newUser.supplierDetails = supplierDetails;
     }
 
-     if (typeof vendorDetails === 'string') {
-       try {
-         vendorDetails = JSON.parse(vendorDetails);
-       } catch (e) {
-         console.log('Error parsing vendorDetails:', e);
-         return res.status(400).json({
-           status: 'error',
-           message: 'Invalid vendor details format',
-         });
-       }
-     }
+    if (typeof vendorDetails === 'string') {
+      try {
+        vendorDetails = JSON.parse(vendorDetails);
+      } catch (e) {
+        console.log('Error parsing vendorDetails:', e);
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid vendor details format',
+        });
+      }
+    }
     if (role === 'service_provider') {
       if (!vendorDetails || !vendorDetails.businessName) {
         return res.status(400).json({
@@ -239,18 +239,36 @@ const signup = async (req, res) => {
 
       // 📧 Send onboarding email with Calendly link
       const calendlyLink =
-        'https://calendly.com/emmanuelnnachi-punch/ycc-onboarding'; // Replace with actual link
+        'https://calendly.com/emmanuelnnachi-punch/ycc-onboarding';
       const serviceProviderEmail = `
-    <div>
-      <h3>Welcome to Yacht Crew Central!</h3>
-      <p>Thank you for applying as a Service Provider. We appreciate your interest in joining our platform.</p>
-      <p>To proceed with the onboarding process, please schedule a meeting using the link below:</p>
-      <p><a href="${calendlyLink}" target="_blank">${calendlyLink}</a></p>
-      <p>We look forward to working with you!</p>
-      <p>Best regards,</p>
-      <p><strong>Yacht Crew Central Team</strong></p>
+  <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+    <div style="max-width: 600px; margin: auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);">
+      <div style="text-align: center; padding-bottom: 20px;">
+        <img src="https://imgur.com/Y6nymwq" alt="Yacht Crew Central Logo" style="width: 150px; max-width: 100%;">
+      </div>
+      <h3 style="color: #2c3e50; text-align: center;">Welcome to Yacht Crew Central!</h3>
+      <p style="color: #555; font-size: 16px; line-height: 1.6; text-align: center;">
+        Thank you for applying as a Service Provider. We appreciate your interest in joining our platform.
+      </p>
+      <p style="color: #555; font-size: 16px; line-height: 1.6; text-align: center;">
+        To proceed with the onboarding process, please schedule a meeting using the link below:
+      </p>
+      <div style="text-align: center; margin: 20px 0;">
+        <a href="${calendlyLink}" target="_blank" style="display: inline-block; background: #0073e6; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; padding: 12px 20px; border-radius: 5px;">
+          Schedule Meeting
+        </a>
+      </div>
+      <p style="color: #555; font-size: 16px; line-height: 1.6; text-align: center;">
+        We look forward to working with you!
+      </p>
+      <p style="color: #555; font-size: 16px; line-height: 1.6; text-align: center;">Best regards,</p>
+      <p style="font-size: 16px; font-weight: bold; text-align: center;">Yacht Crew Central Team</p>
+      <div style="text-align: center; margin-top: 20px; font-size: 14px; color: #888;">
+        <p>&copy; 2025 Yacht Crew Central. All rights reserved.</p>
+      </div>
     </div>
-  `;
+  </div>
+`;
 
       await sendMail(
         req.body.email,
