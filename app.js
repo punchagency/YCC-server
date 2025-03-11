@@ -13,7 +13,7 @@ const authRoutes = require('./routes/auth.route');
 const adminRoutes = require('./routes/admin.route');
 const supplierRoutes = require('./routes/supplier.route');
 const vendorRoutes = require('./routes/vendor.route');
-
+const aiRouter = require('./routes/ai.router');
 
 
 
@@ -54,6 +54,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/supplier', supplierRoutes);
 app.use('/api/vendor', vendorRoutes);
+app.use('/api/ai', aiRouter);
 
 connectDB();
 app.listen(PORT, () => {

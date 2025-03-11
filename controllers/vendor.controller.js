@@ -5,7 +5,7 @@ const getVendors = async (req, res) => {
   if (!vendors) {
     return res.status(404).json({ status: false, message: 'No vendors found' });
   }
-  res.status(200).json({ status: true, vendors });
+  res.status(200).json({ status: true, data: vendors });
 };
 
 module.exports = { getVendors };
