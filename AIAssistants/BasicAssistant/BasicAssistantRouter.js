@@ -8,8 +8,11 @@ basicAssistantRouter.post('/', async (req,res)=>{
     console.log(chat)
     if(!chat._id){
      chat = await Chat.create({messages: chat.messages})
+     console.log('chat created', chat)
+    }else{
+    console.log('chat.messages', chat.messages)
+    chat = await Chat.findByIdAndUpdate(chat._id, { $push: { messages: chat.messages[chat.messages.length - 1] } }, { new: true });
     }
-    chat = await Chat.findByIdAndUpdate(chat._id, { $push: { messages: chat.messages[0] } }, { new: true });
     console.log('new chat', chat)
     const response = await ToolSelection(chat)
     res.send(response);

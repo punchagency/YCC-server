@@ -41,7 +41,7 @@ const ToolSelection = async (chat) => {
 
     const selectedFunction = response.choices[0].message.function_call?.name;
 
-    return selectedFunction ? await tools[selectedFunction](chat) : "No tool selected.";
+    return selectedFunction ? await tools[selectedFunction](chat) : tools.CustomerSupportTool(chat);
 };
 
 

@@ -1,12 +1,13 @@
 const Pinecone = require("../../../../config/pineconeDB"); // Import Pinecone client
 const OpenAI = require("../../../../config/openAI");
+const Chat = require("../../../../models/chat.model");
 
 const PineconeIndex = Pinecone.index(process.env.BASIC_CHAT_BOT_INDEX_NAME);  
 
-async function generateResponse(query) {
-    const relatedEmbedding = await generateEmbeddings(query);
-    const relatedVendors = await getSimilarEmbedding(relatedEmbedding);
-    const response = await generateResponse(relatedVendors, query);
+async function generateResponse(chat) {
+    const embedding = await generateEmbeddings(chat.messages[0].content);
+    const relatedEmbedding = await getSimilarEmbedding(embedding);
+    const response = await generateResponseFromAI(relatedEmbedding, chat);
     return response;
   }
 
@@ -20,19 +21,17 @@ async function generateEmbeddings(query) {
   }
 
 // Query Pinecone for similar vendors
-async function getSimilarEmbedding(query) {
-    const queryEmbedding = await generateEmbeddings(query);
+async function getSimilarEmbedding(queryEmbedding) {
   
     const queryResponse = await PineconeIndex.query({
       vector: queryEmbedding,
       topK: 5, // Get top 5 most relevant vendors
       includeMetadata: true,
     });
-    return queryResponse.matches.map((match) => match.metadata);
+    return queryResponse
   }
 
-async function generateResponse(userQuery) {
-    const relatedEmbedding = await getSimilarEmbedding(userQuery);
+async function generateResponseFromAI(relatedEmbedding, chat) {
   
     const systemMessage = `
     You are a helpful assistant that can help with customer inquiries and support.
@@ -43,14 +42,16 @@ async function generateResponse(userQuery) {
   
     const messages = [
       { role: "system", content: systemMessage },
-      { role: "user", content: userQuery },
+      ...chat.messages
     ];
     const completion = await OpenAI.chat.completions.create({
       model: "gpt-4o-mini",
       messages,
     });
-  
-    return completion.choices[0].message.content;
+    console.log('three')
+    const response = completion.choices[0].message;
+    const updatedChat = await Chat.findByIdAndUpdate(chat._id, { $push: { messages: response } }, { new: true });
+    return updatedChat;
   }
   
 module.exports = { generateResponse };

@@ -4,8 +4,8 @@ const { generateResponse } = require("./bookVendorServiceService");
     name: "AI Vendor Service Booking Assistant",
     description: "An assistant that can help with booking vendor services.",
     tools: ["pinecone_search"],
-    handler: async (query) => {
-        return await generateResponse(query);
+    handler: async (chat) => {
+        return await generateResponse(chat);
     },
 };
 
