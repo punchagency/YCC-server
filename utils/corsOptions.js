@@ -1,6 +1,6 @@
 const allowedOrigins = [
   'http://localhost:4000',
-  'http://localhost:3000', // ✅ Fixed typo
+  'http://localhost:3001', // ✅ Fixed typo
   'https://ycc-sage.vercel.app/',
 ];
 
