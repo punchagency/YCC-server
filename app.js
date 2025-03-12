@@ -15,6 +15,7 @@ const { S3Client } = require('@aws-sdk/client-s3');
 const initializeRoles = require('./utils/init-roles');
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const bucketName = process.env.BUCKET_NAME;
 const bucketRegion = process.env.BUCKET_REGION;
@@ -30,14 +31,10 @@ const s3 = new S3Client({
   region: bucketRegion,
 });
 
-// app.use(cors({ origin: '*', credentials: true }));
-app.use(
-  cors({
-    origin: 'https://ycc-sage.vercel.app', // Allow only this origin
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true, // Allow sending cookies if needed
-  })
-);
+// Enable CORS for all origins
+app.use(cors({
+  origin: '*'
+}));
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
