@@ -1,152 +1,84 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-const userSchema = new mongoose.Schema(
-  {
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    },
+const userSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true,
+  },
+  password: {
+    type: String,
+    required: true,
+  },
+  role: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Role',
+    required: true,
+  },
+  isApproved: {
+    type: Boolean,
+    default: false,
+  },
+  // isRejected: { type: Boolean, default: false },
+  rejectionReason: { type: String, default: null, required: false },
 
-    password: {
-      type: String,
-      required: function () {
-        return !['service_provider', 'supplier'].includes(this.role);
-      },
-      minlength: [8, 'Password must be at least 8 characters'],
-    },
-
-    role: {
-      type: String,
-      enum: ['admin', 'captain', 'service_provider', 'supplier', 'crew_member'],
-      required: true,
-    },
-
-    isApproved: { type: Boolean, default: false },
-    // isRejected: { type: Boolean, default: false },
-    rejectionReason: { type: String, default: null, required: false },
-
-    // Crew Member Fields
-    crewDetails: {
-      firstName: {
-        type: String,
-        required: function () {
-          return this.role === 'crew_member';
-        },
-        trim: true,
-      },
-      lastName: {
-        type: String,
-        required: function () {
-          return this.role === 'crew_member';
-        },
-        trim: true,
-      },
-      phone: {
-        type: String,
-        required: function () {
-          return this.role === 'crew_member';
-        },
-      },
-      country: String,
-      position: {
-        type: String,
-        enum: ['captain', 'exterior', 'interior', 'chef', 'engineering'],
-      },
-      yearsOfExperience: {
-        type: String,
-        enum: ['1', '2', '3', '4', '5'],
-        required: function () {
-          return this.role === 'crew_member';
-        },
-      },
-      nationality: { type: String },
-      passportCountry: { type: String },
-      preferredCommunication: {
-        type: String,
-        enum: ['email', 'whatsapp', 'chat'],
-      },
-      currentLocation: { type: String },
-      availability: { type: String },
-      currentVessel: { type: String },
-      certifications: [{ type: String }], // List of certification names
-      certificationFiles: [String], // File paths
-      cv: String, // File path
-      profilePicture: String, // File path (optional)
-    },
-
-    // Vendor Fields (Service Provider)
-    vendorDetails: {
-      businessName: { type: String },
-      businessAddress: { type: String },
-      department: {
-        type: String,
-        enum: [
-          'captain',
-          'crew',
-          'exterior',
-          'engineering',
-          'interior',
-          'galley',
-        ],
-      },
-      phone: { type: String },
-      businessWebsite: { type: String },
-      taxId: { type: String },
-      licenseFile: { type: String },
-      liabilityInsurance: { type: String },
-      services: [{ type: String }],
-      pricingStructure: { type: String },
-      availability: { type: String },
-      bookingMethod: {
-        type: String,
-        enum: ['instant meeting', 'request to book', 'quote request'],
-      },
-      serviceArea: {
-        type: String,
-        enum: ['caribbean', 'mediterranean', 'usa'],
-      },
-      // Locations served
-      contactPerson: {
-        fullName: { type: String },
-        role: { type: String },
-        
-      },
-    },
-
-    // Supplier Fields
-    supplierDetails: {
-      businessName: { type: String },
-      businessType: {
-        type: String,
-        enum: [
-          'Food Provisions',
-          'Marine Equipment',
-          'Cleaning Supplies',
-          'Fuel',
-        ],
-      },
-      inventorySource: { type: String, enum: ['API', 'Spreadsheet', 'Manual'] },
-      deliveryOptions: [
-        { type: String, enum: ['Same-day', 'Scheduled', 'Express'] },
-      ],
-      serviceAreas: [{ type: String }],
-      licenseFile: { type: String }, // File path
-      vatTaxId: { type: String }, // File path
-      liabilityInsurance: { type: String }, // File path
-      contactPerson: {
-        fullName: { type: String },
-        role: { type: String },
-       
-      },
-    },
+  // References to role-specific details
+  crewProfile: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Crew',
   },
 
-  { timestamps: true }
-);
+  vendorProfile: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Vendor',
+  },
+
+  supplierProfile: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Supplier',
+  },
+}, { timestamps: true });
+
+// Validate that user doesn't have multiple profiles
+userSchema.pre('save', function (next) {
+  const profiles = [
+    this.crewProfile,
+    this.vendorProfile,
+    this.supplierProfile,
+  ].filter(Boolean);
+
+  if (profiles.length > 1) {
+    next(new Error('A user cannot have multiple role-specific profiles'));
+  }
+  next();
+});
+
+// Ensure profile matches role
+userSchema.pre('save', async function (next) {
+  if (this.isModified('role')) {
+    const Role = mongoose.model('Role');
+    const role = await Role.findById(this.role);
+
+    if (!role) {
+      return next(new Error('Invalid role'));
+    }
+
+    // Check if profile matches role
+    if (role.name === 'crew_member' && !this.crewProfile) {
+      return next(new Error('Crew member must have a crew profile'));
+    }
+    if (role.name === 'service_provider' && !this.vendorProfile) {
+      return next(new Error('Service provider must have a vendor profile'));
+    }
+    if (role.name === 'supplier' && !this.supplierProfile) {
+      return next(new Error('Supplier must have a supplier profile'));
+    }
+  }
+  next();
+});
 
 // Hash password before saving
 // userSchema.pre("save", async function (next) {
