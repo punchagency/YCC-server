@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+const Service = require('./service.model');
+
+
 const vendorSchema = new mongoose.Schema(
   {
     user: {
@@ -69,3 +72,4 @@ const vendorSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('Vendor', vendorSchema);
+

@@ -1,3 +1,4 @@
+
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../utils/jwt.utils');
@@ -39,3 +40,4 @@ router.put('/:id', verifyToken, upload, updateSupplier);
 router.delete('/:id', verifyToken, isAdmin, deleteSupplier);
 
 module.exports = router;
+
