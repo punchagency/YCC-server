@@ -15,6 +15,7 @@ const connectDB = require('./config/db');
 const multer = require('multer');
 const { S3Client } = require('@aws-sdk/client-s3');
 const initializeRoles = require('./utils/init-roles');
+const corsOptions = require('./utils/corsOptions');
 
 //routes
 const authRoutes = require('./routes/auth.route');
@@ -44,10 +45,7 @@ const s3 = new S3Client({
 });
 
 // Enable CORS for all origins
-app.use(cors({
-  origin: '*'
-}));
-
+app.use(cors(corsOptions));
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
