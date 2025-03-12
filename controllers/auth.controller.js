@@ -1,4 +1,8 @@
 const User = require('../models/user.model');
+const Role = require('../models/role.model');
+const Crew = require('../models/crew.model');
+const Vendor = require('../models/vendor.model');
+const Supplier = require('../models/supplier.model');
 const { generateToken } = require('../utils/jwt.utils');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -11,305 +15,296 @@ const Notification = require('../models/notifications');
 const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { s3Client } = require('../utils/s3Config');
 
-
 const signup = async (req, res) => {
   try {
-    const { email, password, confirmPassword, role } = req.body;
+    const { email, password, confirmPassword, role: roleName } = req.body;
 
-    let crewDetails = JSON.parse(req.body.crewDetails || '{}');
-    let vendorDetails = req.body.vendorDetails;
+    // Basic validation
+    if (!email || !roleName) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Email and role are required.',
+      });
+    }
 
+    // Email format validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid email format.',
+      });
+    }
+
+    // Check if email exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Email already exists.',
+      });
+    }
+
+    // Find role
+    const role = await Role.findOne({ name: roleName });
     if (!role) {
       return res.status(400).json({
         status: 'error',
-        message: 'Role is required.',
+        message: 'Invalid role selected.',
       });
     }
 
-    if (role === 'service_provider') {
-      try {
-        if (typeof vendorDetails === 'string') {
-          vendorDetails = JSON.parse(vendorDetails);
-        }
-
-        if (!vendorDetails || !vendorDetails.businessName) {
-          return res.status(400).json({
-            status: 'error',
-            message: 'Business name is required.',
-          });
-        }
-      } catch (e) {
-        console.log('Error parsing vendorDetails:', e);
-        return res.status(400).json({
-          status: 'error',
-          message: 'Invalid vendor details format',
-        });
-      }
-    }
-
-    // Log received files
-    console.log('Received files:', req.files);
-
-    // Validate required fields
-    if (!email) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Email is required.',
-      });
-    }
-
-    // Only enforce password for roles that require it
-    // If the role is NOT service_provider or supplier, validate password
-    if (!['service_provider', 'supplier'].includes(role)) {
+    // Password validation based on role
+    let hashedPassword;
+    if (!['service_provider', 'supplier'].includes(roleName)) {
       if (!password || !confirmPassword) {
         return res.status(400).json({
           status: 'error',
-          message: 'Password and Confirm Password are required.',
+          message: 'Password and confirmation are required.',
         });
       }
-
       if (password.length < 8) {
         return res.status(400).json({
           status: 'error',
           message: 'Password must be at least 8 characters.',
         });
       }
-
       if (password !== confirmPassword) {
         return res.status(400).json({
           status: 'error',
           message: 'Passwords do not match.',
         });
       }
-    }
-
-    const validRoles = [
-      'captain',
-      'service_provider',
-      'supplier',
-      'crew_member',
-      'admin',
-    ];
-
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Invalid role selected',
-      });
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Invalid email. Please enter a valid email address.',
-      });
-    }
-
-    console.log('Checking email:', email.toLowerCase());
-    const existingUser = await User.findOne({
-      email: email.toLowerCase(),
-    }).lean();
-    console.log('Existing user found:', existingUser);
-    if (existingUser) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Oops! Account already exists. Please log in.',
-      });
-    }
-    console.log('Vendor Details:', vendorDetails);
-
-    let hashedPassword;
-    let tempUsername = null;
-    let tempPassword = null;
-
-    if (role === 'crew_member') {
       hashedPassword = await bcrypt.hash(password, 10);
-    } else if (role === 'service_provider' || role === 'supplier') {
-      tempUsername = `vendor_${Date.now()}`;
-      tempPassword = Math.random().toString(36).slice(-8); // Random 8-character password
-      hashedPassword = await bcrypt.hash(tempPassword, 10); // Hash temporary password
     } else {
-      hashedPassword = await bcrypt.hash(password, 10);
+      // Generate temporary password for service providers and suppliers
+      const tempPassword = Math.random().toString(36).slice(-8);
+      hashedPassword = await bcrypt.hash(tempPassword, 10);
     }
 
+    // Create base user
     const newUser = new User({
       email: email.toLowerCase(),
       password: hashedPassword,
-      role,
-      isApproved: role === 'crew_member' ? true : false,
-      crewDetails:
-        role === 'crew_member'
-          ? {
-              ...crewDetails,
-
-              profilePicture: crewDetails.profilePicture || null,
-              cv: crewDetails.cv || null,
-              certificationFiles: crewDetails.certificationFiles || [],
-            }
-          : undefined,
+      role: role._id,
+      isApproved: roleName === 'crew_member',
     });
 
-    // Assign role-specific details
-    if (role === 'crew_member') {
-      // Only try to access files if req.files exists
-      const s3BaseUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`;
+    // Handle role-specific profile creation
+    if (roleName === 'crew_member') {
+      const crewDetails = JSON.parse(req.body.crewDetails || '{}');
+
+      if (
+        !crewDetails.firstName ||
+        !crewDetails.lastName ||
+        !crewDetails.position
+      ) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Crew member details are incomplete.',
+        });
+      }
+
+      // Handle file uploads
       if (req.files) {
-        if (req.files.profilePicture && req.files.profilePicture[0]) {
+        const s3BaseUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`;
+        // for crew
+        if (req.files.profilePicture?.[0]) {
           crewDetails.profilePicture = `${s3BaseUrl}/${req.files.profilePicture[0].key}`;
         }
-
-        if (req.files.cv && req.files.cv[0]) {
+        if (req.files.cv?.[0]) {
           crewDetails.cv = `${s3BaseUrl}/${req.files.cv[0].key}`;
         }
-
         if (req.files.certificationFiles) {
           crewDetails.certificationFiles = req.files.certificationFiles.map(
             file => `${s3BaseUrl}/${file.key}`
           );
         }
+        // for vendor
+        if (req.files.licenseFile?.[0]) {
+          crewDetails.licenseFile = `${s3BaseUrl}/${req.files.licenseFile[0].key}`;
+        }
+        if (req.files.pricingStructure?.[0]) {
+          crewDetails.pricingStructure = `${s3BaseUrl}/${req.files.pricingStructure[0].key}`;
+        }
+        if (req.files.liabilityInsurance?.[0]) {
+          crewDetails.liabilityInsurance = `${s3BaseUrl}/${req.files.liabilityInsurance[0].key}`;
+        }
+        if (req.files.taxId?.[0]) {
+          crewDetails.taxId = `${s3BaseUrl}/${req.files.taxId[0].key}`;
+        }
+
+        // for supplier
+        if (req.files.licenseSupplierFile?.[0]) {
+          crewDetails.licenseSupplierFile = `${s3BaseUrl}/${req.files.licenseSupplierFile[0].key}`;
+          console.log(crewDetails.licenseSupplierFile);
+        }
+        if (req.files.supplierVatTaxId?.[0]) {
+          crewDetails.supplierVatTaxId = `${s3BaseUrl}/${req.files.supplierVatTaxId[0].key}`;
+          console.log(crewDetails.supplierVatTaxId);
+        }
+        if (req.files.supplierLiabilityInsurance?.[0]) {
+          crewDetails.supplierLiabilityInsurance = `${s3BaseUrl}/${req.files.supplierLiabilityInsurance[0].key}`;
+          console.log(crewDetails.supplierLiabilityInsurance);
+        }
+        if (req.files.spreadsheetFile?.[0]) {
+          crewDetails.spreadsheetFile = `${s3BaseUrl}/${req.files.spreadsheetFile[0].key}`;
+          console.log(crewDetails.spreadsheetFile);
+        }
       }
 
-      if (!crewDetails || !crewDetails.position) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Crew member details are required.',
-        });
-      }
-      newUser.crewDetails = crewDetails;
-    }
-
-    if (role === 'supplier') {
-      if (!supplierDetails || !supplierDetails.businessName) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Supplier details are required.',
-        });
-      }
-      newUser.supplierDetails = supplierDetails;
-    }
-
-    if (typeof vendorDetails === 'string') {
+      const crew = new Crew({
+        user: newUser._id,
+        ...crewDetails,
+      });
+      await crew.save();
+      newUser.crewProfile = crew._id;
+    } else if (roleName === 'service_provider') {
+      let vendorDetails = req.body.vendorDetails;
       try {
-        vendorDetails = JSON.parse(vendorDetails);
+        if (typeof vendorDetails === 'string') {
+          vendorDetails = JSON.parse(vendorDetails);
+        }
       } catch (e) {
-        console.log('Error parsing vendorDetails:', e);
         return res.status(400).json({
           status: 'error',
-          message: 'Invalid vendor details format',
-        });
-      }
-    }
-    if (role === 'service_provider') {
-      if (!vendorDetails || !vendorDetails.businessName) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Vendor details are required.',
+          message: 'Invalid vendor details format.',
         });
       }
 
-      // Handle file uploads for service providers
-      const s3BaseUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`;
+      if (!vendorDetails?.businessName || !vendorDetails?.department) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Vendor details are incomplete.',
+        });
+      }
 
+      // Handle file uploads
       if (req.files) {
-        console.log('Service provider files:', req.files);
-
-        // Handle license file
+        const s3BaseUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`;
         if (req.files.licenseFile?.[0]) {
           vendorDetails.licenseFile = `${s3BaseUrl}/${req.files.licenseFile[0].key}`;
         }
-
-        // Handle liability insurance
         if (req.files.liabilityInsurance?.[0]) {
           vendorDetails.liabilityInsurance = `${s3BaseUrl}/${req.files.liabilityInsurance[0].key}`;
         }
-
-        // Handle tax ID
         if (req.files.taxId?.[0]) {
           vendorDetails.taxId = `${s3BaseUrl}/${req.files.taxId[0].key}`;
         }
+      }
 
-        // Handle pricing structure
-        if (req.files.pricingStructure?.[0]) {
-          vendorDetails.pricingStructure = `${s3BaseUrl}/${req.files.pricingStructure[0].key}`;
+      const vendor = new Vendor({
+        user: newUser._id,
+        ...vendorDetails,
+      });
+      await vendor.save();
+      newUser.vendorProfile = vendor._id;
+    } else if (roleName === 'supplier') {
+      // Get the S3 URLs for uploaded files
+      const s3BaseUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`;
+
+      if (req.files) {
+        const supplierDetails = JSON.parse(req.body.supplierDetails);
+
+        // Update file URLs in supplierDetails
+        if (req.files.licenseSupplierFile?.[0]) {
+          supplierDetails.licenseSupplierFile = `${s3BaseUrl}/${req.files.licenseSupplierFile[0].key}`;
+        }
+        if (req.files.supplierVatTaxId?.[0]) {
+          supplierDetails.supplierVatTaxId = `${s3BaseUrl}/${req.files.supplierVatTaxId[0].key}`;
+        }
+        if (req.files.supplierLiabilityInsurance?.[0]) {
+          supplierDetails.supplierLiabilityInsurance = `${s3BaseUrl}/${req.files.supplierLiabilityInsurance[0].key}`;
+        }
+        if (req.files.spreadsheetFile?.[0]) {
+          supplierDetails.spreadsheetFile = `${s3BaseUrl}/${req.files.spreadsheetFile[0].key}`;
+        }
+
+        // Update req.body.supplierDetails with the new URLs
+        req.body.supplierDetails = JSON.stringify(supplierDetails);
+      }
+
+      let supplierDetails = req.body.supplierDetails;
+      try {
+        if (typeof supplierDetails === 'string') {
+          supplierDetails = JSON.parse(supplierDetails);
+        }
+      } catch (e) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid supplier details format.',
+        });
+      }
+
+      if (!supplierDetails?.businessName || !supplierDetails?.businessType) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Supplier details are incomplete.',
+        });
+      }
+
+      // Handle file uploads
+      if (req.files) {
+        const s3BaseUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`;
+        if (req.files.licenseFile?.[0]) {
+          supplierDetails.licenseFile = `${s3BaseUrl}/${req.files.licenseFile[0].key}`;
+        }
+        if (req.files.liabilityInsurance?.[0]) {
+          supplierDetails.liabilityInsurance = `${s3BaseUrl}/${req.files.liabilityInsurance[0].key}`;
+        }
+        if (req.files.vatTaxId?.[0]) {
+          supplierDetails.vatTaxId = `${s3BaseUrl}/${req.files.vatTaxId[0].key}`;
         }
       }
 
-      newUser.vendorDetails = vendorDetails;
-      newUser.crewDetails = undefined;
-
-      // 📧 Send onboarding email with Calendly link
-      const calendlyLink =
-        'https://calendly.com/emmanuelnnachi-punch/ycc-onboarding';
-      const serviceProviderEmail = `
-  <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
-    <div style="max-width: 600px; margin: auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);">
-      <div style="text-align: center; padding-bottom: 20px;">
-        <img src="https://imgur.com/Y6nymwq" alt="Yacht Crew Central Logo" style="width: 150px; max-width: 100%;">
-      </div>
-      <h3 style="color: #2c3e50; text-align: center;">Welcome to Yacht Crew Central!</h3>
-      <p style="color: #555; font-size: 16px; line-height: 1.6; text-align: center;">
-        Thank you for applying as a Service Provider. We appreciate your interest in joining our platform.
-      </p>
-      <p style="color: #555; font-size: 16px; line-height: 1.6; text-align: center;">
-        To proceed with the onboarding process, please schedule a meeting using the link below:
-      </p>
-      <div style="text-align: center; margin: 20px 0;">
-        <a href="${calendlyLink}" target="_blank" style="display: inline-block; background: #0073e6; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; padding: 12px 20px; border-radius: 5px;">
-          Schedule Meeting
-        </a>
-      </div>
-      <p style="color: #555; font-size: 16px; line-height: 1.6; text-align: center;">
-        We look forward to working with you!
-      </p>
-      <p style="color: #555; font-size: 16px; line-height: 1.6; text-align: center;">Best regards,</p>
-      <p style="font-size: 16px; font-weight: bold; text-align: center;">Yacht Crew Central Team</p>
-      <div style="text-align: center; margin-top: 20px; font-size: 14px; color: #888;">
-        <p>&copy; 2025 Yacht Crew Central. All rights reserved.</p>
-      </div>
-    </div>
-  </div>
-`;
-
-      await sendMail(
-        req.body.email,
-        'Thank You for Applying – Schedule Your Onboarding',
-        serviceProviderEmail
-      );
+      const supplier = new Supplier({
+        user: newUser._id,
+        ...supplierDetails,
+      });
+      await supplier.save();
+      newUser.supplierProfile = supplier._id;
     }
 
-    await sendMail(
-      req.body.email,
-      'Welcome to Yacht Crew Central! Your Account is Successfully Created',
-      htmlContent
-        .replace(/{{fullName}}/g, req.body.firstName)
-        .replace(/{{lastName}}/g, req.body.lastName)
-        .replace(/{{email}}/g, req.body.email)
-    );
-
+    // Save user and send notifications
     await newUser.save();
+    await newUser.populate('role');
 
-    const token = generateToken({ userId: newUser._id, role: newUser.role });
+    // Populate the appropriate profile
+    let profile;
+    if (newUser.crewProfile) {
+      await newUser.populate('crewProfile');
+      profile = newUser.crewProfile;
+    } else if (newUser.vendorProfile) {
+      await newUser.populate('vendorProfile');
+      profile = newUser.vendorProfile;
+    } else if (newUser.supplierProfile) {
+      await newUser.populate('supplierProfile');
+      profile = newUser.supplierProfile;
+    }
 
-    const admins = await User.find({ role: 'admin' });
+    // Generate token
+    const token = generateToken({
+      userId: newUser._id,
+      role: newUser.role.name,
+    });
+
+    // Notify admins
+    const admins = await User.find().populate({
+      path: 'role',
+      match: { name: 'admin' },
+    });
+
     if (admins.length > 0) {
       const adminEmails = admins.map(admin => admin.email);
       const adminNotificationEmail = `
     <div>
       <h3>New User Signup</h3>
       <p>A new user has signed up and is awaiting approval.</p>
-      <p><strong>Full Name:</strong> ${
-        role === 'crew_member'
-          ? `${crewDetails.firstName} ${crewDetails.lastName}`
-          : vendorDetails?.businessName || 'N/A'
-      }</p>
       <p><strong>Email:</strong> ${email}</p>
-      <p><strong>Role:</strong> ${role}</p>
+          <p><strong>Role:</strong> ${roleName}</p>
       <p>Please review and approve/reject the user.</p>
-      <p>Best regards,<br>Yacht Crew Central</p>
     </div>
   `;
 
-      // Send email to all admins
       for (const adminEmail of adminEmails) {
         await sendMail(
           adminEmail,
@@ -317,125 +312,117 @@ const signup = async (req, res) => {
           adminNotificationEmail
         );
       }
+
+      // Create notifications for admins
+      for (const admin of admins) {
+        await new Notification({
+          recipient: admin._id,
+          message: `New user ${email} has signed up as ${roleName} and is awaiting approval`,
+        }).save();
+      }
     }
 
-    const adminUsers = await User.find({ role: 'admin' });
-    for (const admin of adminUsers) {
-      const newNotification = new Notification({
-        recipient: admin._id,
-        message: `New user ${
-          role === 'crew_member'
-            ? `${crewDetails.firstName} ${crewDetails.lastName}`
-            : vendorDetails?.businessName || email
-        } has signed up and is awaiting approval`,
-      });
-      await newNotification.save();
-    }
     res.status(201).json({
       status: 'success',
       message: 'Account created successfully!',
-      user: {
-        id: newUser._id,
-        firstName: crewDetails?.firstName,
-        lastname: crewDetails?.lastName,
-        email: newUser.email,
-        role: newUser.role,
+      data: {
+        user: {
+          id: newUser._id,
+          email: newUser.email,
+          role: newUser.role.name,
+          isApproved: newUser.isApproved,
+          profile,
+        },
+        token,
       },
-      token,
     });
   } catch (error) {
-    console.error('Signup Error:', error);
+    // If there's an error, clean up any uploaded files
     if (req.files) {
-      try {
-        await Promise.all(
-          Object.values(req.files)
-            .flat()
-            .map(file =>
-              s3Client.send(
-                new DeleteObjectCommand({
-                  Bucket: process.env.AWS_BUCKET_NAME,
-                  Key: file.key,
-                })
-              )
-            )
-        );
-      } catch (deleteError) {
-        console.error('Error deleting files:', deleteError);
-      }
+      await deleteUploadedFiles(req.files);
     }
-    res.status(500).json({
+
+    console.warn('Signup Error:', error);
+    return res.status(400).json({
       status: 'error',
-      message: 'Something went wrong. Please try again later.',
-      error: error.message,
+      message: error.message || 'Failed to create account',
     });
   }
 };
 
 const loginUser = async (req, res) => {
   try {
-    console.log('Request Body:', req.body);
-
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ status: 'error', message: 'Email and password are required.' });
-    }
 
-    const user = await User.findOne({ email: email.toLowerCase() }).exec();
-    console.log('User found:', user);
-    if (user.isRejected) {
+    // Validate input
+    if (!email || !password) {
       return res.status(400).json({
-        message:
-          'Your account has been rejected, please contact admin for more information',
+        status: 'error',
+        message: 'Email and password are required.',
       });
     }
 
+    // Find user and populate role and profile
+    const user = await User.findOne({ email: email.toLowerCase() })
+      .populate('role')
+      .populate('crewProfile')
+      .populate('vendorProfile')
+      .populate('supplierProfile');
+
     if (!user) {
-      return res
-        .status(400)
-        .json({ status: 'error', message: 'Invalid email or password.' });
+      return res.status(401).json({
+        status: 'error',
+        message: 'Invalid credentials.',
+      });
     }
 
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Invalid credentials.',
+      });
+    }
+
+    // Check approval status
     if (
       !user.isApproved &&
-      user.role !== 'admin' &&
-      user.role != 'crew_member'
+      !['admin', 'crew_member'].includes(user.role.name)
     ) {
       return res.status(403).json({
         status: 'error',
-        message:
-          'Your account is pending approval. Please wait for admin approval.',
+        message: 'Account pending approval. Please wait for admin approval.',
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    console.log('Password Match:', isMatch);
+    // Get the appropriate profile
+    const profile =
+      user.crewProfile || user.vendorProfile || user.supplierProfile;
 
-    if (!isMatch) {
-      return res
-        .status(400)
-        .json({ status: 'error', message: 'Invalid email or password.' });
-    }
-
-    const token = generateToken({ userId: user._id, role: user.role });
+    // Generate token
+    const token = generateToken({ userId: user._id, role: user.role.name });
 
     res.status(200).json({
       status: 'success',
       message: 'Login successful!',
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
+      data: {
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role.name,
+          isApproved: user.isApproved,
+          profile,
+        },
+        token,
       },
-      token,
     });
   } catch (error) {
     console.error('Login Error:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Something went wrong. Please try again later.',
+      message: 'Error during login.',
+      error: error.message,
     });
   }
 };
@@ -558,6 +545,35 @@ const resetPassword = async (req, res) => {
       status: 'error',
       message: 'Something went wrong. Please try again later.',
     });
+  }
+};
+
+// If there's an error, delete uploaded files
+const deleteUploadedFiles = async files => {
+  try {
+    if (!files) return;
+
+    const deletePromises = Object.values(files)
+      .flat()
+      .map(async file => {
+        if (!file || !file.key) return;
+
+        const deleteParams = {
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Key: file.key,
+        };
+
+        try {
+          await s3Client.send(new DeleteObjectCommand(deleteParams));
+          console.log(`Deleted file: ${file.key}`);
+        } catch (err) {
+          console.error(`Error deleting file ${file.key}:`, err);
+        }
+      });
+
+    await Promise.all(deletePromises);
+  } catch (err) {
+    console.error('Error in deleteUploadedFiles:', err);
   }
 };
 
