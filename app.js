@@ -4,11 +4,19 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const PORT = process.env.PORT || 3000;
 const app = express();
-const authRoutes = require('./routes/auth.route');
 const connectDB = require('./config/db');
 const multer = require('multer');
-const adminRoutes = require('./routes/admin.route');
 const { S3Client } = require('@aws-sdk/client-s3');
+
+//routes
+const authRoutes = require('./routes/auth.route');
+const adminRoutes = require('./routes/admin.route');
+const supplierRoutes = require('./routes/supplier.route');
+const vendorRoutes = require('./routes/vendor.route');
+const aiRouter = require('./routes/ai.router');
+const chatRoutes = require('./routes/chatRoutes');
+
+
 
 app.use(express.json());
 
@@ -45,6 +53,10 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/supplier', supplierRoutes);
+app.use('/api/vendor', vendorRoutes);
+app.use('/api/ai', aiRouter);
+app.use('/api/chats', chatRoutes);
 
 connectDB();
 app.listen(PORT, () => {
