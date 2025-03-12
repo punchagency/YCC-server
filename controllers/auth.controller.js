@@ -353,16 +353,18 @@ const signup = async (req, res) => {
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('Login attempt for:', email);
 
     // Validate input
     if (!email || !password) {
+      console.log('Missing email or password');
       return res.status(400).json({
         status: 'error',
         message: 'Email and password are required.',
       });
     }
 
-    // Find user and populate role and profile
+    // Find user and populate role
     const user = await User.findOne({ email: email.toLowerCase() })
       .populate('role')
       .populate('crewProfile')
@@ -370,12 +372,16 @@ const loginUser = async (req, res) => {
       .populate('supplierProfile');
 
     if (!user) {
+      console.log('User not found:', email);
       return res.status(401).json({
         status: 'error',
         message: 'Invalid credentials.',
       });
     }
 
+    // Log successful response
+    console.log('Login successful for:', email);
+    
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
