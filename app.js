@@ -30,7 +30,14 @@ const s3 = new S3Client({
   region: bucketRegion,
 });
 
-app.use(cors({ origin: '*', credentials: true }));
+// app.use(cors({ origin: '*', credentials: true }));
+app.use(
+  cors({
+    origin: 'https://ycc-sage.vercel.app', // Allow only this origin
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true, // Allow sending cookies if needed
+  })
+);
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
