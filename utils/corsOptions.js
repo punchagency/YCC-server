@@ -1,7 +1,7 @@
 const allowedOrigins = [
   'http://localhost:4000',
-  'http://localhost:3001', // ✅ Fixed typo
-  'https://ycc-sage.vercel.app/',
+  'http://localhost:3001',
+  'https://ycc-sage.vercel.app',
 ];
 
 const corsOptions = {
@@ -12,7 +12,12 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true, // ✅ Allow credentials (cookies, authorization headers)
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 };
 
-export default corsOptions;
+module.exports = corsOptions;
