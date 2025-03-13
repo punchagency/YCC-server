@@ -57,4 +57,10 @@ const updateSuppliers = async() => {
     //await index.upsert(suppliers);
 };
 
-module.exports = { updateVendors, updateSuppliers };
+const updateCustomerServiceDataRepository = async() => {    
+    const index = Pinecone.Index(process.env.BASIC_CHAT_BOT_INDEX_NAME);
+   // console.log(customerServiceDataRepository);
+    //await index.upsert(customerServiceDataRepository);
+};
+
+module.exports = { updateVendors, updateSuppliers, updateCustomerServiceDataRepository };

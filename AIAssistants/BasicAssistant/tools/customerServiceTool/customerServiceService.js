@@ -48,7 +48,7 @@ async function generateResponseFromAI(relatedEmbedding, chat) {
       model: "gpt-4o-mini",
       messages,
     });
-    console.log('three')
+    //console.log('three')
     const response = completion.choices[0].message;
     const updatedChat = await Chat.findByIdAndUpdate(chat._id, { $push: { messages: response } }, { new: true });
     return updatedChat;

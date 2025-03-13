@@ -5,15 +5,15 @@ const OpenAI = require("../../../config/openAI");
 
 const tools = {
     VendorServicesTool: async (chat) => {
-        console.log("Vendor Services Tool selected");
+        //console.log("Vendor Services Tool selected");
         return await VendorServicesTool.handler(chat);
     },
     CustomerSupportTool: async (chat) => {
-        console.log("Customer Support Tool selected");
+        //console.log("Customer Support Tool selected");
         return await CustomerSupportTool.handler(chat);
     },
     BookVendorTool: async (chat) => {
-        console.log("Book Vendor Tool selected");
+        //console.log("Book Vendor Tool selected");
         return await BookVendorTool.handler(chat);
     },
 };

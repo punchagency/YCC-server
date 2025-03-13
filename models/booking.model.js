@@ -5,15 +5,15 @@ const Service = require("./service.model");
 
 const bookingSchema = new mongoose.Schema(
   {
-    guestName: {
+    name: {
+      type: String,
+      required: false,
+    },
+    email: {
       type: String,
       required: true,
     },
-    guestEmail: {
-      type: String,
-      required: true,
-    },
-    guestPhone: {
+    phoneNumber: {
       type: String,
       required: true,
     },
@@ -38,7 +38,7 @@ const bookingSchema = new mongoose.Schema(
     ],
     totalPrice: {
       type: Number,
-      required: true,
+      required: false,
     },
     status: {
       type: String,

@@ -12,6 +12,7 @@ const vendorSchema = new mongoose.Schema(
     businessName: {
       type: String,
       required: true,
+      unique: true,
     },
     businessAddress: {
       type: String,

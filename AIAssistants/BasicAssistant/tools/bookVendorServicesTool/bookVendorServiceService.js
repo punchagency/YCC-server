@@ -5,27 +5,44 @@ const Service = require("../../../../models/service.model");
 const Booking = require("../../../../models/booking.model");
 const Chat = require("../../../../models/chat.model");
 const extractBookingTool = require("../extractBookingTool/extractBookingService");
+const { getVendorByBusinessName } = require("../../../../controllers/vendor.controller");
 
 const PineconeIndex = Pinecone.index(process.env.YCC_VENDOR_PROFILES_INDEX_NAME);
 
 async function generateResponse(chat) {
 
-    const bookingDetails = await extractBookingDetails(chat);
-    console.log('bookingDetails', bookingDetails)
+    let bookingDetails = await extractBookingDetails(chat);
+    console.log('bookingDetails before parsing', bookingDetails)
+    bookingDetails = JSON.parse(bookingDetails.content)
+    console.log('bookingDetails after parsing', bookingDetails)
 
+    //if any of the details are missing, reroute to extractBookingDetails
     if (!bookingDetails.vendorName ||
         !bookingDetails.serviceName ||
-        !bookingDetails.guestName ||
-        !bookingDetails.guestEmail ||
-        !bookingDetails.guestPhone) {
-        const dataNeeded = "vendorName, serviceName, guestName, guestEmail, guestPhone"
-        const dataPresent = `vendorName: ${bookingDetails.vendorName}, serviceName: ${bookingDetails.serviceName}, guestName: ${bookingDetails.guestName}, guestEmail: ${bookingDetails.guestEmail}, guestPhone: ${bookingDetails.guestPhone}`
+        !bookingDetails.name ||
+        !bookingDetails.email ||
+        !bookingDetails.phoneNumber ||
+        !bookingDetails.bookingDate) {
+        const dataNeeded = "vendorName, serviceName, name, email, phoneNumber, bookingDate"
+        const dataPresent = `vendorName: ${bookingDetails.vendorName}, serviceName: ${bookingDetails.serviceName}, name: ${bookingDetails.name}, email: ${bookingDetails.email}, phoneNumber: ${bookingDetails.phoneNumber}, bookingDate: ${bookingDetails.bookingDate}`
 
         return extractBookingTool.generateResponse(dataNeeded, dataPresent, chat)
     }
 
-    return bookingDetails
+    //get vendor details
+    const vendor = await getVendorByBusinessName(bookingDetails.vendorName)
+    if (!vendor) {
+        console.log('Vendor not found')
+        return { status: false, message: 'Vendor not found' };
+    }
+    const service = vendor.services.find(service => service.name === (bookingDetails.serviceName).toLowerCase())
+    if (!service) {
+        console.log('Service not found')
+        return { status: false, message: 'Service not found' };
+    }
 
+    //if all the details are present, book the service
+    return await bookService({name: bookingDetails.name, email: bookingDetails.email, phoneNumber: bookingDetails.phoneNumber, vendorId: vendor._id, serviceId: service._id, bookingDate: bookingDetails.bookingDate})
 }
 
 
@@ -34,13 +51,14 @@ async function extractBookingDetails(chat) {
     const systemMessage = `
     You are a smart AI that extracts booking details from user messages.
     Extract the following details:
-    - Guest Name
+    - Name
     - Email
     - Phone Number
     - Vendor Name
     - Service Name
-    Respond in JSON format: 
-    {"guestName": "...", "guestEmail": "...", "guestPhone": "...", "vendorName": "...", "serviceName": "..."}
+    - Booking Date
+    Respond in JSON format, and only return the JSON object, do not include any other text or comments: 
+    {"name": "", "email": "", "phoneNumber": "", "vendorName": "", "serviceName": "", "bookingDate": ""}
     `;
 
     const messages = [
@@ -66,71 +84,10 @@ async function extractBookingDetails(chat) {
 }
 
 
+async function bookService({ name, email, phoneNumber, vendorId, serviceId }) {
 
-
-
-async function generateEmbeddings(query) {
-    try {
-        const response = await OpenAI.embeddings.create({
-            model: "text-embedding-3-small",
-            input: query,
-        });
-        console.log('one')
-        return response.data[0].embedding;
-    } catch (error) {
-        console.error('Error in generateEmbeddings:', error);
-        return 'An error occurred while generating embeddings. Please try again later.';
-    }
-}
-
-async function getSimilarEmbedding(queryEmbedding) {
-    try {
-
-        const queryResponse = await PineconeIndex.query({
-            vector: queryEmbedding,
-            topK: 5, // Get top 5 most relevant vendors
-            includeMetadata: true,
-        });
-        console.log('two')
-        return queryResponse //.matches.map((match) => match.metadata);
-    } catch (error) {
-        console.error('Error in getSimilarEmbedding:', error);
-        return 'An error occurred while getting similar embeddings. Please try again later.';
-    }
-}
-
-const getVendorsFromQuery = async (queryResponse) => {
-    // Extract vendor IDs from metadata
-    console.log(queryResponse)
-    const vendorIds = queryResponse.matches.map(item => item.id);
-
-    // Fetch full vendor details from MongoDB
-    const vendors = await Vendor.find({ _id: { $in: vendorIds } }).populate('services');
-
-    return vendors;
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-async function bookService({ guestName, guestEmail, guestPhone, vendorId, serviceId }) {
-
-    console.log(guestName, guestEmail, guestPhone, vendorId, serviceId)
+    console.log(name, email, phoneNumber, vendorId, serviceId)
+    const booking = await Booking.create({ name, email, phoneNumber, vendor: vendorId, service: serviceId })
     console.log("Booking successful!")
     return { success: true, message: "Booking successful!" };
 
