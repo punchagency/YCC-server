@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
+
 const Service = require('./service.model');
+
 
 const vendorSchema = new mongoose.Schema(
   {
@@ -40,8 +42,7 @@ const vendorSchema = new mongoose.Schema(
     liabilityInsurance: String,
     services: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Service",
+        type: String,
         required: true,
       },
     ],
@@ -72,3 +73,4 @@ const vendorSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('Vendor', vendorSchema);
+
