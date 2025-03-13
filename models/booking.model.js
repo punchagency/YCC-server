@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const Vendor = require("./vendor.model");
 const Service = require("./service.model");
-
+const crypto = require('crypto');
 
 const bookingSchema = new mongoose.Schema(
   {
@@ -31,7 +31,7 @@ const bookingSchema = new mongoose.Schema(
         },
         quantity: {
           type: Number,
-          required: true,
+          required: false,
           min: 1,
         },
       },
@@ -54,8 +54,14 @@ const bookingSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    bookingId: {
+      type: String,
+      unique: true,
+      default: () => `#${crypto.randomBytes(4).toString("base64url")}`,
+    },
   },
   { timestamps: true }
 );
+
 
 module.exports = mongoose.model('Booking', bookingSchema);

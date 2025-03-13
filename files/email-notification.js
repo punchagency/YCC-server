@@ -71,6 +71,12 @@ const sendRejectionEmail = `
           <p>Best regards,<br>Yacht Crew Central</p>
         </div>`;
         
+const BookingConfirmationEmail = `
+        <div>
+          <h3>Hello {{firstName}},</h3>
+          <p>Congratulations! Your booking has been confirmed.</p>
+          <p>Your booking ID is <strong>{{bookingId}}</strong></p>
+          <p>Best regards,<br>Yacht Crew Central</p>
+        </div>`;
 
-
-module.exports = { htmlContent, sendApprovalEmail, sendRejectionEmail };
+module.exports = { htmlContent, sendApprovalEmail, sendRejectionEmail, BookingConfirmationEmail };
