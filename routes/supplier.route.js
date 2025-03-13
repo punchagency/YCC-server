@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../utils/jwt.utils');
@@ -11,27 +10,23 @@ const {
   deleteSupplier,
   getSuppliersByBusinessType,
   getSuppliersByServiceArea,
+  getSuppliers,
 } = require('../controllers/supplier.controller');
 
 // Get all suppliers
-router.get('/', verifyToken, getAllSuppliers);
+router.get('/', getAllSuppliers);
 
-// Get supplier by ID
-router.get('/:id', verifyToken, getSupplierById);
+// Get simple suppliers list
+router.get('/list', getSuppliers);
 
-// Get suppliers by business type
-router.get(
-  '/business-type/:businessType',
-  verifyToken,
-  getSuppliersByBusinessType
-);
+// Get suppliers by business type - must come before /:id route
+router.get('/business-type/:businessType', getSuppliersByBusinessType);
 
-// Get suppliers by service area
-router.get(
-  '/service-area/:serviceArea',
-  verifyToken,
-  getSuppliersByServiceArea
-);
+// Get suppliers by service area - must come before /:id route
+router.get('/service-area/:serviceArea', getSuppliersByServiceArea);
+
+// Get supplier by ID - must come after other specific routes
+router.get('/:id', getSupplierById);
 
 // Update supplier
 router.put('/:id', verifyToken, upload, updateSupplier);
@@ -40,4 +35,3 @@ router.put('/:id', verifyToken, upload, updateSupplier);
 router.delete('/:id', verifyToken, isAdmin, deleteSupplier);
 
 module.exports = router;
-

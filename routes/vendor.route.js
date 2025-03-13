@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../utils/jwt.utils');
@@ -11,19 +10,23 @@ const {
   deleteVendor,
   getVendorsByDepartment,
   getVendorsByServiceArea,
+  getVendors
 } = require('../controllers/vendor.controller');
 
 // Get all vendors
-router.get('/', verifyToken, getAllVendors);
+router.get('/', getAllVendors);
 
-// Get vendor by ID
-router.get('/:id', verifyToken, getVendorById);
+// Get simple vendors list
+router.get('/list', getVendors);
 
-// Get vendors by department
-router.get('/department/:department', verifyToken, getVendorsByDepartment);
+// Get vendors by department - must come before /:id route
+router.get('/department/:department', getVendorsByDepartment);
 
-// Get vendors by service area
-router.get('/service-area/:serviceArea', verifyToken, getVendorsByServiceArea);
+// Get vendors by service area - must come before /:id route
+router.get('/service-area/:serviceArea', getVendorsByServiceArea);
+
+// Get vendor by ID - must come after other specific routes
+router.get('/:id', getVendorById);
 
 // Update vendor
 router.put('/:id', verifyToken, upload, updateVendor);

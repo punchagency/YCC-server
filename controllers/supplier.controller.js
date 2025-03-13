@@ -1,5 +1,4 @@
 const Supplier = require('../models/supplier.model');
-
 const User = require('../models/user.model');
 
 // Get all suppliers
@@ -177,6 +176,26 @@ const getSuppliersByServiceArea = async (req, res) => {
   }
 };
 
+// Simple get suppliers function
+const getSuppliers = async (req, res) => {
+  try {
+    const suppliers = await Supplier.find({});
+    if (!suppliers) {
+      return res
+        .status(404)
+        .json({ status: false, message: 'No suppliers found' });
+    }
+    res.status(200).json({ status: true, data: suppliers });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Error fetching suppliers',
+      error: error.message,
+    });
+  }
+};
+
+// SINGLE module.exports with ALL functions
 module.exports = {
   getAllSuppliers,
   getSupplierById,
@@ -184,16 +203,5 @@ module.exports = {
   deleteSupplier,
   getSuppliersByBusinessType,
   getSuppliersByServiceArea,
+  getSuppliers,
 };
-
-const getSuppliers = async (req, res) => {
-  const suppliers = await Supplier.find({});
-  if (!suppliers) {
-    return res.status(404).json({ status: false, message: 'No suppliers found' });
-  }
-  res.status(200).json({ status: true, data: suppliers });
-};
-
-
-module.exports = { getSuppliers };
-

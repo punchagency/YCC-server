@@ -1,15 +1,8 @@
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const PORT = process.env.PORT || 3000;
 const app = express();
-
-const authRoutes = require('./routes/auth.route');
-const adminRoutes = require('./routes/admin.route');
-const crewRoutes = require('./routes/crew.route');
-const vendorRoutes = require('./routes/vendor.route');
-const supplierRoutes = require('./routes/supplier.route');
 
 const connectDB = require('./config/db');
 const multer = require('multer');
@@ -24,8 +17,7 @@ const supplierRoutes = require('./routes/supplier.route');
 const vendorRoutes = require('./routes/vendor.route');
 const aiRouter = require('./routes/ai.router');
 const chatRoutes = require('./routes/chatRoutes');
-
-
+const crewRoutes = require('./routes/crew.route');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -68,7 +60,6 @@ app.use('/api/supplier', supplierRoutes);
 app.use('/api/vendor', vendorRoutes);
 app.use('/api/ai', aiRouter);
 app.use('/api/chats', chatRoutes);
-
 
 const startServer = async () => {
   try {

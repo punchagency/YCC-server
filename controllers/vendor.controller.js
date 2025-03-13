@@ -1,5 +1,4 @@
 const Vendor = require('../models/vendor.model');
-
 const User = require('../models/user.model');
 
 // Get all vendors
@@ -178,6 +177,24 @@ const getVendorsByServiceArea = async (req, res) => {
   }
 };
 
+// Simple get vendors function
+const getVendors = async (req, res) => {
+  try {
+    const vendors = await Vendor.find({});
+    if (!vendors) {
+      return res.status(404).json({ status: false, message: 'No vendors found' });
+    }
+    res.status(200).json({ status: true, data: vendors });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Error fetching vendors',
+      error: error.message,
+    });
+  }
+};
+
+// SINGLE module.exports with ALL functions
 module.exports = {
   getAllVendors,
   getVendorById,
@@ -185,15 +202,6 @@ module.exports = {
   deleteVendor,
   getVendorsByDepartment,
   getVendorsByServiceArea,
+  getVendors
 };
-
-const getVendors = async (req, res) => {
-  const vendors = await Vendor.find({});
-  if (!vendors) {
-    return res.status(404).json({ status: false, message: 'No vendors found' });
-  }
-  res.status(200).json({ status: true, data: vendors });
-};
-
-module.exports = { getVendors };
 
