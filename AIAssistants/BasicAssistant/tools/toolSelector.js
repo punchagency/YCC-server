@@ -25,15 +25,15 @@ const ToolSelection = async (chat) => {
         functions: [
             {
                 name: "VendorServicesTool",
-                description: "Provides information about pricing and availability for vendor services and products.",
+                description: "Retrieves and provides detailed information on vendor services, including product availability, pricing, service options, and supplier details. This function ensures vendors have up-to-date information for effective business operations.",
             },
             {
                 name: "CustomerSupportTool",
-                description: "Provides general customer support inquiries about the company and minor departmental inquiries, YCC(Yatch Crew Center).",
+                description: "Handles general customer support inquiries related to the company's services, policies, and yacht crew center (YCC). It assists with minor departmental concerns, frequently asked questions, and general guidance on company operations.",
             },
             {
                 name: "BookVendorTool",
-                description: "Helps users book vendor services and products.",
+                description: "Facilitates the booking of vendor services and product orders. It allows users to schedule vendor services, confirm product availability, and manage bookings efficiently.",
             },
         ],
         function_call: "auto",

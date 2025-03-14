@@ -55,7 +55,7 @@ async function extractBookingDetails(chat) {
     try {
     const systemMessage = `
     You are a smart AI that extracts booking details from user messages.
-    Extract the following details:
+    Extract the following details, make sure to extract the EXACT Vendor Name and the EXACT Service Name from the available vendors and services:
     - Name
     - Email
     - Phone Number
@@ -95,23 +95,23 @@ async function sendBookingConfirmation(response, chat){
     You are a smart AI that sends booking confirmation or booking failed message to the user.
     Send the following message to the user:
     if booking is successful:
-    "Booking successful! Your booking ID is ${response.bookingId}. Please keep it safe. You can track your booking status at any time by using the booking ID."
+    "Booking successful! Your booking ID is ${response.booking.bookingId}. Please keep it safe. You can track your booking status at any time by using the booking ID."
     if booking fails:
     "Booking failed. Please try again."
 
     this is the response from the booking service:
     ${response.success ? "Booking successful!" : "Booking failed."}
     `;
-    /*if(response.success){
+    if(response.success){
 
         await sendMail(
-            response.email,
+            response.booking.email,
             'Booking successful!',
             BookingConfirmationEmail
-              .replace(/{{firstName}}/g, response.name)
-              .replace(/{{bookingId}}/g, response.bookingId)
+              .replace(/{{firstName}}/g, response.booking.name)
+              .replace(/{{bookingId}}/g, response.booking.bookingId)
           );
-    }*/
+    }
     const messages = [
         { role: "system", content: systemMessage },
         ...chat.messages
@@ -135,8 +135,7 @@ async function bookService({ name, email, phoneNumber, vendorId, serviceId, book
     const booking = await Booking.create({ name, email, phoneNumber, vendor: vendorId, services: [{service: serviceId}], bookingDate })
     console.log("Booking successful!", booking)
 
-    const bookingId = booking.bookingId
-    return { success: true, message: "Booking successful!", bookingId };
+    return { success: true, message: "Booking successful!", booking };
 
 }
 

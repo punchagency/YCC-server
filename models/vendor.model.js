@@ -42,7 +42,8 @@ const vendorSchema = new mongoose.Schema(
     liabilityInsurance: String,
     services: [
       {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Service",
         required: true,
       },
     ],

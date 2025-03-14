@@ -56,8 +56,6 @@ app.use('/api/crew', crewRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/suppliers', supplierRoutes);
 
-app.use('/api/supplier', supplierRoutes);
-app.use('/api/vendor', vendorRoutes);
 app.use('/api/ai', aiRouter);
 app.use('/api/chats', chatRoutes);
 
