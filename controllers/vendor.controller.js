@@ -193,7 +193,19 @@ const getVendors = async (req, res) => {
     });
   }
 };
-
+const getVendorByBusinessName = async (name) => {
+  try {
+    const vendor = await Vendor.findOne({ businessName: name }).populate('services');
+    console.log('vendor from getVendorByBusinessName', vendor)
+    if (!vendor) {
+      return { status: false, message: 'Vendor not found' };
+    }
+    return vendor
+  } catch (error) {
+    console.error(error);
+    return { status: false, message: 'Internal server error' };
+  }
+};
 // SINGLE module.exports with ALL functions
 module.exports = {
   getAllVendors,
@@ -202,6 +214,7 @@ module.exports = {
   deleteVendor,
   getVendorsByDepartment,
   getVendorsByServiceArea,
-  getVendors
+  getVendors,
+  getVendorByBusinessName
 };
 

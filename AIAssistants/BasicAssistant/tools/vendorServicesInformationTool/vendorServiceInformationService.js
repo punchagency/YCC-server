@@ -26,7 +26,7 @@ async function generateEmbeddings(query) {
       model: "text-embedding-3-small",
       input: query,
     });
-    console.log('one')
+    //console.log('one')
     return response.data[0].embedding;
   } catch (error) {
     console.error('Error in generateEmbeddings:', error);
@@ -43,7 +43,7 @@ async function getSimilarEmbedding(queryEmbedding) {
       topK: 5, // Get top 5 most relevant vendors
       includeMetadata: true,
     });
-    console.log('two')
+    //console.log('two')
     return queryResponse //.matches.map((match) => match.metadata);
   } catch (error) {
     console.error('Error in getSimilarEmbedding:', error);
@@ -81,7 +81,7 @@ async function generateResponseFromAI(relatedEmbedding, chat) {
       model: "gpt-4o-mini",
       messages,
     });
-    console.log('three')
+    //console.log('three')
     const response = completion.choices[0].message;
     const updatedChat = await Chat.findByIdAndUpdate(chat._id, { $push: { messages: response } }, { new: true });
     return updatedChat;

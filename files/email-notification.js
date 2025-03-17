@@ -70,7 +70,25 @@ const sendRejectionEmail = `
           <p>If you believe this was a mistake, you can contact support.</p>
           <p>Best regards,<br>Yacht Crew Central</p>
         </div>`;
-        
 
+const BookingConfirmationEmail = `
+       <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; background-color: #f4f4f4; padding: 20px;">
 
-module.exports = { htmlContent, sendApprovalEmail, sendRejectionEmail };
+    <!-- Email Content -->
+    <div style="max-width: 600px; background: #fff; padding: 20px; margin: auto; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
+      <h2 style="color: #0077b6; text-align: center;">Hello {{firstName}},</h2>
+      <p style="text-align: center;">🎉 <strong>Congratulations!</strong> Your booking has been confirmed.</p>
+
+      <!-- Booking ID Section -->
+      <div style="background: #0077b6; color: #fff; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
+        <strong>Your Booking ID:</strong> <span style="font-size: 18px;">{{bookingId}}</span>
+      </div>
+
+      <p style="text-align: center;">We are excited to have you on board! If you have any questions, feel free to reach out.</p>
+
+      <p style="text-align: center; font-weight: bold; margin-top: 20px;">Best regards,<br>Yacht Crew Central</p>
+    </div>
+  </div>
+`;
+
+module.exports = { htmlContent, sendApprovalEmail, sendRejectionEmail, BookingConfirmationEmail };

@@ -14,6 +14,7 @@ const vendorSchema = new mongoose.Schema(
     businessName: {
       type: String,
       required: true,
+      unique: true,
     },
     businessAddress: {
       type: String,
@@ -41,7 +42,8 @@ const vendorSchema = new mongoose.Schema(
     liabilityInsurance: String,
     services: [
       {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Service",
         required: true,
       },
     ],
