@@ -18,7 +18,7 @@ const vendorRoutes = require('./routes/vendor.route');
 const aiRouter = require('./routes/ai.router');
 const chatRoutes = require('./routes/chatRoutes');
 const crewRoutes = require('./routes/crew.route');
-
+const inventoryRoutes = require('./routes/inventory.route');
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -55,6 +55,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/crew', crewRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/suppliers', supplierRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 app.use('/api/ai', aiRouter);
 app.use('/api/chats', chatRoutes);
